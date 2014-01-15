@@ -4,6 +4,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.text.Layout;
@@ -11,10 +12,12 @@ import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.style.BackgroundColorSpan;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 public class SelectableTextViewer extends RelativeLayout {
@@ -23,12 +26,14 @@ public class SelectableTextViewer extends RelativeLayout {
 	private int mStartSelect = -1;
 	private ImageView imgEndSelect;
 	private int mEndSelect = -1;
-	private int mImgWidth = -1;
-	private int mImgHeight = -1;
+	private int mImgWidth = 40;
+	private int mImgHeight = 50;
 
 	private TextView textView;
 
 	private View mCurrentControlFocused;
+
+	public ScrollView insideScrollView;
 
 	public static interface ISelectableTextViewerListener {
 
@@ -36,6 +41,9 @@ public class SelectableTextViewer extends RelativeLayout {
 
 		public void endSelectingText(SelectableTextViewer selectableTextViewer,
 				String selectedText);
+
+		public void stopSelectingText(
+				SelectableTextViewer selectableTextViewer, String selectedText);
 
 	}
 
@@ -69,6 +77,7 @@ public class SelectableTextViewer extends RelativeLayout {
 	}
 
 	private void initControls() {
+
 		this.textView = new TextView(getContext());
 		this.addView(textView);
 		this.setOnLongClickListener(new TextView.OnLongClickListener() {
@@ -84,16 +93,25 @@ public class SelectableTextViewer extends RelativeLayout {
 
 	}
 
+	public void setInsideScrollView(ScrollView insideScrollView) {
+		this.insideScrollView = insideScrollView;
+
+	}
+
+	protected void disallowIntercept(Boolean disallowIntercept) {
+		if (this.insideScrollView != null) {
+			this.insideScrollView
+					.requestDisallowInterceptTouchEvent(disallowIntercept);
+		}
+	}
+
 	protected void createImgControllersForSelection() {
 		this.imgStartSelect = new ImageView(getContext());
 		this.imgEndSelect = new ImageView(getContext());
 		this.imgStartSelect.setImageResource(R.drawable.cursor);
 		this.imgEndSelect.setImageResource(R.drawable.cursor);
-		this.addView(imgStartSelect, 40, 50);
-		this.addView(imgEndSelect, 40, 50);
-
-		this.imgEndSelect.setClickable(true);
-		this.imgStartSelect.setClickable(true);
+		this.addView(imgStartSelect, mImgWidth, mImgHeight);
+		this.addView(imgEndSelect, mImgWidth, mImgHeight);
 		OnClickListener onClickForChangeFocus = new View.OnClickListener() {
 
 			@Override
@@ -108,6 +126,8 @@ public class SelectableTextViewer extends RelativeLayout {
 
 			@Override
 			public boolean onTouch(View v, MotionEvent event) {
+				disallowIntercept(true);
+
 				mCurrentControlFocused = v;
 				int eid = event.getAction();
 				switch (eid) {
@@ -115,34 +135,33 @@ public class SelectableTextViewer extends RelativeLayout {
 
 					RelativeLayout.LayoutParams mParams = (RelativeLayout.LayoutParams) v
 							.getLayoutParams();
+
 					int x = (int) event.getRawX();
-					int y = (int) event.getRawY();
-					if (mImgWidth == -1) {
-						mImgWidth = imgStartSelect.getMeasuredWidth();
-					}
-					if (mImgHeight == -1) {
-						mImgHeight = imgStartSelect.getMeasuredHeight();
-					}
+					int y = (int) event.getRawY()
+							+ insideScrollView.getScrollY();
 
 					mParams.leftMargin = x - mImgWidth;
-					mParams.topMargin = y - mImgHeight * 3;
+					mParams.topMargin = y - (mImgHeight * 3 + mImgHeight / 2);
 					v.setLayoutParams(mParams);
-					updateSelectionByMovementImgControls(mParams.leftMargin
-							+ mImgWidth / 2, mParams.topMargin);
+					updateSelectionByMovementImgControls(mParams.leftMargin,
+							mParams.topMargin);
 					break;
 				case MotionEvent.ACTION_UP:
 					if (selectableTextViewerListener != null) {
 						selectableTextViewerListener.endSelectingText(
 								SelectableTextViewer.this, getSelectedText());
 					}
+
 					break;
 				default:
+					disallowIntercept(false);
 					break;
 				}
 				return true;
 
 			}
 		};
+
 		this.imgEndSelect.setOnTouchListener(onTouchSelectionControl);
 		this.imgStartSelect.setOnTouchListener(onTouchSelectionControl);
 
@@ -153,9 +172,9 @@ public class SelectableTextViewer extends RelativeLayout {
 
 	protected void updateSelectionByMovementImgControls(int x, int y) {
 		if (mCurrentControlFocused.equals(imgStartSelect)) {
-			this.mStartSelect = getOffsetByCoordinates(x, y);
+			this.mStartSelect = getOffsetByCoordinates(x + mImgWidth / 2, y);
 		} else if (mCurrentControlFocused.equals(imgEndSelect)) {
-			this.mEndSelect = getOffsetByCoordinates(x, y);
+			this.mEndSelect = getOffsetByCoordinates(x + mImgWidth / 2, y);
 		}
 		updateSelectionSpan();
 
@@ -194,17 +213,20 @@ public class SelectableTextViewer extends RelativeLayout {
 
 			RelativeLayout.LayoutParams startLP = (LayoutParams) this.imgStartSelect
 					.getLayoutParams();
-			float xStart = layout.getPrimaryHorizontal(this.mStartSelect);
+			float xStart = layout.getPrimaryHorizontal(this.mStartSelect)
+					- mImgWidth / 2;
 			float yStart = layout.getLineBounds(
 					layout.getLineForOffset(this.mStartSelect),
 					parentTextViewRect);
 			startLP.setMargins((int) xStart, (int) yStart, -1, -1);
+
 			this.imgStartSelect.setLayoutParams(startLP);
 			this.imgStartSelect.setVisibility(View.VISIBLE);
 
 			RelativeLayout.LayoutParams endLP = (LayoutParams) this.imgEndSelect
 					.getLayoutParams();
-			float xEnd = layout.getPrimaryHorizontal(this.mEndSelect);
+			float xEnd = layout.getPrimaryHorizontal(this.mEndSelect)
+					- mImgWidth / 2;
 			float yEnd = layout.getLineBounds(
 					layout.getLineForOffset(this.mEndSelect),
 					parentTextViewRect);
@@ -212,22 +234,24 @@ public class SelectableTextViewer extends RelativeLayout {
 			this.imgEndSelect.setLayoutParams(endLP);
 			this.imgEndSelect.setVisibility(View.VISIBLE);
 
-			System.out.println("xStart:" + xStart + "\t yStart:" + yStart
-					+ "\t xEnd:" + xEnd + "\t yEnd:" + yEnd + "");
 		}
 	}
 
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-
 		if (event.getAction() == MotionEvent.ACTION_DOWN) {
 			if (this.imgStartSelect != null) {
 				if (this.imgStartSelect.getVisibility() == View.GONE) {
 					this.onTouchDownCalcSelections(event);
+					disallowIntercept(false);
+
 				} else {
 					this.stopSelecting();
+
 				}
 			}
+		} else {
+			this.disallowIntercept(false);
 		}
 		return super.onTouchEvent(event);
 	}
@@ -252,18 +276,18 @@ public class SelectableTextViewer extends RelativeLayout {
 		int x = (int) event.getX();
 		int y = (int) event.getY();
 		this.mStartSelect = getOffsetByCoordinates(x, y);
-
-		// Calculate text end
-		String tempStr = this.textView.getText().toString();
-		tempStr = tempStr.substring(this.mStartSelect);
-		Pattern pt = Pattern.compile("\\s");
-		Matcher mt = pt.matcher(tempStr);
-		if (mt.find()) {
-			String match = mt.group(0);
-			tempStr = tempStr.substring(0, tempStr.indexOf(match));
+		if (this.mStartSelect > -1) {
+			// Calculate text end
+			String tempStr = this.textView.getText().toString();
+			tempStr = tempStr.substring(this.mStartSelect);
+			Pattern pt = Pattern.compile("\\s");
+			Matcher mt = pt.matcher(tempStr);
+			if (mt.find()) {
+				String match = mt.group(0);
+				tempStr = tempStr.substring(0, tempStr.indexOf(match));
+			}
+			this.mEndSelect = this.mStartSelect + tempStr.length();
 		}
-		this.mEndSelect = this.mStartSelect + tempStr.length();
-
 	}
 
 	public void setText(SpannableStringBuilder builder) {
@@ -305,6 +329,10 @@ public class SelectableTextViewer extends RelativeLayout {
 
 		spannable.clearSpans();
 		this.textView.setText(spannable);
+		if (selectableTextViewerListener != null) {
+			selectableTextViewerListener.stopSelectingText(
+					SelectableTextViewer.this, getSelectedText());
+		}
 	}
 
 }

@@ -20,6 +20,7 @@ import android.widget.TextView.BufferType;
 public class MainActivity extends Activity {
 
 	public SelectableTextViewer textViewer;
+	public ScrollView scroll;
 
 	public String someText = "sd fsda klfhajks dfkadhsjk hajskdhfjk adshjk ashdkj fahsdjkhfjk asdhkj fasdfhjk asdfadsashk"
 			+ "as kjdfhjkasd fhjas djkfahsdj kfhjkasdh jkafsdh "
@@ -30,11 +31,10 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		textViewer = new SelectableTextViewer(this);
-
-		ScrollView sc = new ScrollView(this);
-		// sc.addView(textViewer);
-		setContentView(textViewer);
+		this.setContentView(R.layout.activity_main);
+		this.textViewer = (SelectableTextViewer) findViewById(R.id.selectableTextViewer1);
+		this.scroll = (ScrollView) findViewById(R.id.scroll);
+		this.textViewer.setInsideScrollView(scroll);
 
 		SpannableStringBuilder builder = new SpannableStringBuilder(someText
 				+ someText + someText + someText + someText + someText
@@ -48,7 +48,6 @@ public class MainActivity extends Activity {
 					@Override
 					public void updateSelection(
 							SelectableTextViewer selectableTextViewer) {
-						System.out.println("Update selection");
 
 					}
 
@@ -56,12 +55,18 @@ public class MainActivity extends Activity {
 					public void endSelectingText(
 							SelectableTextViewer selectableTextViewer,
 							String selectedText) {
-						System.out.println("Selected text:"+selectedText);
+						// System.out.println("Selected text:" + selectedText);
 
+					}
+
+					@Override
+					public void stopSelectingText(
+							SelectableTextViewer selectableTextViewer,
+							String selectedText) {
+						// TODO Auto-generated method stub
 
 					}
 				});
 
 	}
-
 }
