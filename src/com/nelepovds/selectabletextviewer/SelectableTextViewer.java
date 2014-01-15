@@ -4,15 +4,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import android.content.Context;
-import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.text.Layout;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
+import android.text.SpannedString;
 import android.text.style.BackgroundColorSpan;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
@@ -33,8 +32,6 @@ public class SelectableTextViewer extends RelativeLayout {
 
 	private View mCurrentControlFocused;
 
-	public ScrollView insideScrollView;
-
 	public static interface ISelectableTextViewerListener {
 
 		public void updateSelection(SelectableTextViewer selectableTextViewer);
@@ -48,6 +45,7 @@ public class SelectableTextViewer extends RelativeLayout {
 	}
 
 	private ISelectableTextViewerListener selectableTextViewerListener;
+	private BackgroundColorSpan spanBackgroundColored;
 
 	public void setSelectableTextViewerListener(
 			ISelectableTextViewerListener selectableTextViewerListener) {
@@ -77,7 +75,7 @@ public class SelectableTextViewer extends RelativeLayout {
 	}
 
 	private void initControls() {
-
+		this.spanBackgroundColored = new BackgroundColorSpan(Color.LTGRAY);
 		this.textView = new TextView(getContext());
 		this.addView(textView);
 		this.setOnLongClickListener(new TextView.OnLongClickListener() {
@@ -85,6 +83,12 @@ public class SelectableTextViewer extends RelativeLayout {
 			@Override
 			public boolean onLongClick(View v) {
 				showSelectionControls();
+				int[] location = { 0, 0 };
+
+				getLocationOnScreen(location);
+				System.out.println("getLocationOnScreen:" + location[0] + "\t"
+						+ location[1]);
+
 				return false;
 			}
 		});
@@ -93,16 +97,8 @@ public class SelectableTextViewer extends RelativeLayout {
 
 	}
 
-	public void setInsideScrollView(ScrollView insideScrollView) {
-		this.insideScrollView = insideScrollView;
-
-	}
-
 	protected void disallowIntercept(Boolean disallowIntercept) {
-		if (this.insideScrollView != null) {
-			this.insideScrollView
-					.requestDisallowInterceptTouchEvent(disallowIntercept);
-		}
+		this.getParent().requestDisallowInterceptTouchEvent(disallowIntercept);
 	}
 
 	protected void createImgControllersForSelection() {
@@ -132,16 +128,29 @@ public class SelectableTextViewer extends RelativeLayout {
 				int eid = event.getAction();
 				switch (eid) {
 				case MotionEvent.ACTION_MOVE:
+					int[] location = { 0, 0 };
+
+					getLocationOnScreen(location);
 
 					RelativeLayout.LayoutParams mParams = (RelativeLayout.LayoutParams) v
 							.getLayoutParams();
 
 					int x = (int) event.getRawX();
-					int y = (int) event.getRawY()
-							+ insideScrollView.getScrollY();
+					int y = (int) event.getRawY();
+					// + insideScrollView.getScrollY();
 
-					mParams.leftMargin = x - mImgWidth;
-					mParams.topMargin = y - (mImgHeight * 3 + mImgHeight / 2);
+					mParams.leftMargin = x - mImgWidth / 2 - location[0];
+					if (x <= 0) {
+						mParams.leftMargin = mImgWidth;
+					} else if (x > (getMeasuredWidth() - mImgWidth)) {
+						mParams.leftMargin = getMeasuredWidth() - mImgWidth;
+					}
+					// TODO Must calculate all padding control
+
+					mParams.topMargin = (int) (y - (location[1] + mImgHeight * 1.5f));
+					if (mParams.topMargin <= 1) {
+						mParams.topMargin = 1;
+					}
 					v.setLayoutParams(mParams);
 					updateSelectionByMovementImgControls(mParams.leftMargin,
 							mParams.topMargin);
@@ -190,13 +199,13 @@ public class SelectableTextViewer extends RelativeLayout {
 				showSelectionControls();
 			}
 
-			SpannableStringBuilder spannable = new SpannableStringBuilder(
-					this.textView.getText());
+			SpannedString spannable = (SpannedString) this.textView.getText();
+			SpannableStringBuilder ssb = new SpannableStringBuilder(spannable);
+			ssb.removeSpan(this.spanBackgroundColored);
 
-			spannable.clearSpans();
-			spannable.setSpan(new BackgroundColorSpan(Color.LTGRAY),
-					this.mStartSelect, this.mEndSelect, Spannable.SPAN_USER);
-			this.textView.setText(spannable);
+			ssb.setSpan(this.spanBackgroundColored, this.mStartSelect,
+					this.mEndSelect, Spannable.SPAN_USER);
+			this.textView.setText(ssb);
 			this.textView.requestLayout();
 			if (this.selectableTextViewerListener != null) {
 				this.selectableTextViewerListener.updateSelection(this);
@@ -242,6 +251,7 @@ public class SelectableTextViewer extends RelativeLayout {
 		if (event.getAction() == MotionEvent.ACTION_DOWN) {
 			if (this.imgStartSelect != null) {
 				if (this.imgStartSelect.getVisibility() == View.GONE) {
+
 					this.onTouchDownCalcSelections(event);
 					disallowIntercept(false);
 
@@ -324,11 +334,10 @@ public class SelectableTextViewer extends RelativeLayout {
 	 */
 	public void stopSelecting() {
 		this.hideSelectionControls();
-		SpannableStringBuilder spannable = new SpannableStringBuilder(
-				this.textView.getText());
-
-		spannable.clearSpans();
-		this.textView.setText(spannable);
+		SpannedString spannable = (SpannedString) this.textView.getText();
+		SpannableStringBuilder ssb = new SpannableStringBuilder(spannable);
+		ssb.removeSpan(this.spanBackgroundColored);
+		this.setText(ssb);
 		if (selectableTextViewerListener != null) {
 			selectableTextViewerListener.stopSelectingText(
 					SelectableTextViewer.this, getSelectedText());

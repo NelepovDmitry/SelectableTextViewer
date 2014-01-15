@@ -5,6 +5,7 @@ import com.nelepovds.selectabletextviewer.SelectableTextViewer.ISelectableTextVi
 import android.os.Bundle;
 import android.app.Activity;
 import android.graphics.Color;
+import android.text.Html;
 import android.text.InputType;
 import android.text.Spannable;
 import android.text.Spannable.Factory;
@@ -22,8 +23,8 @@ public class MainActivity extends Activity {
 	public SelectableTextViewer textViewer;
 	public ScrollView scroll;
 
-	public String someText = "sd fsda klfhajks dfkadhsjk hajskdhfjk adshjk ashdkj fahsdjkhfjk asdhkj fasdfhjk asdfadsashk"
-			+ "as kjdfhjkasd fhjas djkfahsdj kfhjkasdh jkafsdh "
+	public String someText = "<h1>sd fsda klfhajks dfkadhsjk</h1> <p>hajskdhfjk adshjk ashdkj fahsdjkhfjk asdhkj fasdfhjk asdfadsashk"
+			+ "as kjdfhjkasd fhjas djkfahsdj kfhjkasdh jkafsdh</p> "
 			+ "sadjk fhakjsd fashd jkfhsjkdfk hsadjk hfasdjkh jkfashdkj fhaskjd hakfjsdhfjk ahsdl "
 			+ "jkad jkfhajk sdhfjk ashdjk hjkasdjkf ashdjkfhadjs khjkasdhjk faksdahsdh fjklhsda"
 			+ "jasd kfhasdjk fahskjdh ajksh";
@@ -34,13 +35,17 @@ public class MainActivity extends Activity {
 		this.setContentView(R.layout.activity_main);
 		this.textViewer = (SelectableTextViewer) findViewById(R.id.selectableTextViewer1);
 		this.scroll = (ScrollView) findViewById(R.id.scroll);
-		this.textViewer.setInsideScrollView(scroll);
+		//this.textViewer.setInsideScrollView(scroll);
 
 		SpannableStringBuilder builder = new SpannableStringBuilder(someText
 				+ someText + someText + someText + someText + someText
 				+ someText + someText + someText + someText + someText
 				+ someText + someText + someText);
-		this.textViewer.setText(builder);
+		this.textViewer.setText((SpannableStringBuilder)Html.fromHtml(someText
+				+ someText + someText + someText + someText + someText
+				+ someText + someText + someText + someText + someText
+				+ someText + someText + someText));
+		
 
 		this.textViewer
 				.setSelectableTextViewerListener(new ISelectableTextViewerListener() {
@@ -55,7 +60,7 @@ public class MainActivity extends Activity {
 					public void endSelectingText(
 							SelectableTextViewer selectableTextViewer,
 							String selectedText) {
-						// System.out.println("Selected text:" + selectedText);
+						 System.out.println("Selected text:" + selectedText);
 
 					}
 
